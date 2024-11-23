@@ -51,7 +51,6 @@ def get_table_data(mydb,tablename):
         st.error(f"Error fetching data from table {tablename}: {e}")
         return None
 
-
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -259,19 +258,16 @@ def table_operations(connection):
                         except mysql.connector.Error as e:
                             st.error(f"Error deleting record: {e}")
 
-
 def admin_panel(connection):
     st.title("Admin Panel")
 
-    menu = ["Manage Users", "Table Operations"]
-    choice = st.sidebar.selectbox("Menu", menu)
+    menu = ["Manage Users", "Manage Tables"]
+    choice = st.sidebar.selectbox("What do you want to do today?", menu)
     
     if(choice == "Manage Users"):
         manage_user(connection)
     else:
         table_operations(connection)
-        
-
 
 def login_page():
     st.subheader("Login")
@@ -291,7 +287,6 @@ def login_page():
             else:
                 st.error("Invalid username or password")
             connection.close()
-
 
 def signup_page():
     st.subheader("Create New Account")
