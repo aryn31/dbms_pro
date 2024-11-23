@@ -20,8 +20,9 @@ def connect_to_database():
                 username VARCHAR(50) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
                 email VARCHAR(100) UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 is_admin BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                user_type VARCHAR(50) NOT NULL DEFAULT 'regular'
             )
         """)
         connection.commit()
@@ -306,27 +307,22 @@ def login_page():
                 st.error("Invalid username or password")
             connection.close()
 
+  # Assuming this function exists
 
 def signup_page():
     st.subheader("Create New Account")
-    
-    # Input fields for username, password, and email
     username = st.text_input("Username", key="signup_username")
     password = st.text_input("Password", type="password", key="signup_password")
     email = st.text_input("Email")
-    
-    # Admin privileges checkbox
+
+    # Admin option checkbox
     is_admin = st.checkbox("Grant Admin Privileges")
-    
-    # User type selection dropdown
-    user_type = st.selectbox("Select User Type", ["Admin", "Regular", "Manufacturer"])
 
     if st.button("Sign Up"):
         if username and password and email:
             mydb = connect_to_database()
             if mydb:
-                # Create the user with the selected user type
-                if create_user(mydb, username, password, email, is_admin, user_type):
+                if create_user(mydb, username, password, email, is_admin):
                     st.success("Account created successfully! Please login.")
                     st.session_state.signup_success = True
                     st.rerun()  # Reload the page to show login option
@@ -459,7 +455,6 @@ def filter_flights(mydb, departure_airport=None, arrival_airport=None, departure
         st.error(f"Error filtering flights: {e}")
         return None
 
-
 def user_view():
     mydb = connect_to_database()
     if mydb:
@@ -573,63 +568,6 @@ def main():
             st.session_state.logged_in = False
             st.session_state.is_admin = False
             st.rerun()
-
-# def main():
-#     st.title("MySQL Database Explorer")
-
-#     # Initialize session state if not already done
-#     if 'logged_in' not in st.session_state:
-#         st.session_state.logged_in = False
-#     if 'is_admin' not in st.session_state:
-#         st.session_state.is_admin = False
-#     if 'user_type' not in st.session_state:
-#         st.session_state.user_type = None
-#     if 'username' not in st.session_state:
-#         st.session_state.username = None
-
-#     # If not logged in, show login/signup options
-#     if not st.session_state.logged_in:
-#         menu = ["Login", "Sign Up"]
-#         choice = st.sidebar.selectbox("Menu", menu)
-
-#         if choice == "Login":
-#             login_page()
-#         else:
-#             signup_page()
-#     else:
-#         st.sidebar.success(f"Welcome {st.session_state.username}")
-
-#         # Debugging: Show user role and is_admin status
-#         st.write(f"Logged in as: {st.session_state.username}")
-#         st.write(f"User Role: {st.session_state.user_type}")
-#         st.write(f"Is Admin: {st.session_state.is_admin}")
-
-#         # Display appropriate menu based on user type
-#         if st.session_state.is_admin:  # Admin users
-#             menu = ["View Data", "Admin Panel"]
-#         else:  # Regular or Manufacturer users
-#             menu = ["View Data", "Flight Search"]
-
-#         choice = st.sidebar.selectbox("Menu", menu)
-
-#         # Conditional views based on menu selection
-#         if choice == "Flight Search" and not st.session_state.is_admin:
-#             flight_search_view()
-#         elif choice == "Admin Panel" and st.session_state.is_admin:
-#             mydb = connect_to_database()
-#             if mydb:
-#                 admin_panel(mydb)
-#                 mydb.close()
-#         else:  # Regular users or for viewing data
-#             user_view()
-
-#         # Logout option
-#         if st.sidebar.button("Logout"):
-#             st.session_state.logged_in = False
-#             st.session_state.is_admin = False
-#             st.session_state.user_type = None
-#             st.session_state.username = None
-#             st.rerun()
 
 
 if __name__ == "__main__":
