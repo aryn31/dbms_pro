@@ -4,34 +4,6 @@ import pandas as pd
 import hashlib
 from datetime import datetime
 
-
-# def connect_to_database():
-#     try:
-#         connection = mysql.connector.connect(
-#             user='root',
-#             password='sql_my1country',
-#             host='localhost',
-#             database='sample'
-#         )
-
-#         # Create users table if it doesn't exist
-#         with connection.cursor() as cursor:
-#             cursor.execute("""
-#                 CREATE TABLE IF NOT EXISTS users (
-#                     id INT AUTO_INCREMENT PRIMARY KEY,
-#                     username VARCHAR(50) UNIQUE NOT NULL,
-#                     password VARCHAR(255) NOT NULL,
-#                     email VARCHAR(100) UNIQUE NOT NULL,
-#                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-#                 )
-#             """)
-#             connection.commit()
-
-#         return connection
-#     except mysql.connector.Error as e:
-#         st.error(f"Error connecting to MySQL database: {e}")
-#         return None
-
 def connect_to_database():
     try:
         connection = mysql.connector.connect(
@@ -59,19 +31,6 @@ def connect_to_database():
         st.error(f"Error connecting to MySQL database: {e}")
         return None
 
-
-# # Replace with your actual credentials
-
-# # mydb=mysql.connector.connect(
-# #     username = 'root',
-# #     password = 'sql_my1country',
-# #     host = 'localhost',
-# #     database = 'sample'
-# # )
-
-# mycursor=mydb.cursor()
-# print("connection done")
-
 def get_all_tables(mydb):
     try:
         with mydb.cursor() as cursor:
@@ -96,18 +55,6 @@ def get_table_data(mydb,tablename):
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# def authenticate_user(mydb,username,password):
-#     try:
-#         with mydb.cursor() as cursor:
-#             hashed_password = hash_password(password)
-#             cursor.execute("SELECT * FROM users WHERE username = %s AND password = %s", 
-#                           (username, hashed_password))
-#             user = cursor.fetchone()
-#         return user is not None
-#     except mysql.connector.Error as e:
-#         st.error(f"Authentication Error: {e}")
-#         return False
-
 def authenticate_user(connection, username, password):
     try:
         cursor = connection.cursor()
@@ -122,22 +69,6 @@ def authenticate_user(connection, username, password):
     except mysql.connector.Error as e:
         st.error(f"Authentication error: {e}")
         return None
-
-
-# def create_user(mydb,username,password,email):
-#     try:
-#         with mydb.cursor() as cursor:
-#             hashed_password = hash_password(password)
-#             cursor.execute("INSERT INTO users (username, password, email) VALUES (%s, %s, %s)", 
-#                           (username, hashed_password, email))
-#             mydb.commit()
-#         return True
-#     except mysql.connector.Error as e:
-#         if e.errno == 1062:  # Duplicate entry error
-#             st.error("Username or email already exists!")
-#         else:
-#             st.error(f"Error creating user: {e}")
-#         return False
 
 def create_user(connection, username, password, email, is_admin=False):
     try:
@@ -155,130 +86,13 @@ def create_user(connection, username, password, email, is_admin=False):
             st.error(f"Error creating user: {e}")
         return False
 
-# def admin_panel(connection):
-#     st.title("Admin Panel")
-    
-#     # Table operations section
-#     st.header("Table Operations")
-    
-#     tables = get_all_tables(connection)
-#     selected_table = st.selectbox("Select Table", tables)
-    
-#     if selected_table:
-#         operation = st.radio("Select Operation", ["View", "Insert", "Update", "Delete"])
-        
-#         if operation == "View":
-#             df = get_table_data(connection, selected_table)
-#             if df is not None:
-#                 st.dataframe(df)
-        
-#         elif operation == "Insert":
-#             # Get column names and types
-#             cursor = connection.cursor()
-#             cursor.execute(f"DESCRIBE {selected_table}")
-#             columns = cursor.fetchall()
-#             cursor.close()
-            
-#             st.subheader(f"Insert into {selected_table}")
-#             # Create input fields for each column
-#             values = {}
-#             for col in columns:
-#                 col_name = col[0]
-#                 col_type = col[1]
-#                 if col_name not in ['id', 'created_at']:  # Skip auto-generated columns
-#                     if 'int' in col_type:
-#                         values[col_name] = st.number_input(f"Enter {col_name}", step=1)
-#                     elif 'float' in col_type or 'double' in col_type:
-#                         values[col_name] = st.number_input(f"Enter {col_name}", step=0.01)
-#                     else:
-#                         values[col_name] = st.text_input(f"Enter {col_name}")
-            
-#             if st.button("Insert Record"):
-#                 try:
-#                     cursor = connection.cursor()
-#                     cols = ', '.join(values.keys())
-#                     vals = ', '.join(['%s'] * len(values))
-#                     query = f"INSERT INTO {selected_table} ({cols}) VALUES ({vals})"
-#                     cursor.execute(query, list(values.values()))
-#                     connection.commit()
-#                     cursor.close()
-#                     st.success("Record inserted successfully!")
-#                 except mysql.connector.Error as e:
-#                     st.error(f"Error inserting record: {e}")
-        
-#         elif operation == "Update":
-#             df = get_table_data(connection, selected_table)
-#             if df is not None:
-#                 st.dataframe(df)
-                
-#                 # Get primary key for the table
-#                 cursor = connection.cursor()
-#                 cursor.execute(f"SHOW KEYS FROM {selected_table} WHERE Key_name = 'PRIMARY'")
-#                 primary_key = cursor.fetchone()[4]  # Column name of primary key
-                
-#                 # Select record to update
-#                 record_id = st.number_input(f"Enter {primary_key} of record to update", min_value=1)
-                
-#                 # Get column names and types
-#                 cursor.execute(f"DESCRIBE {selected_table}")
-#                 columns = cursor.fetchall()
-#                 cursor.close()
-                
-#                 # Create input fields for each column
-#                 values = {}
-#                 for col in columns:
-#                     col_name = col[0]
-#                     col_type = col[1]
-#                     if col_name not in ['id', 'created_at', primary_key]:  # Skip primary key and auto-generated columns
-#                         if 'int' in col_type:
-#                             values[col_name] = st.number_input(f"New value for {col_name}", step=1)
-#                         elif 'float' in col_type or 'double' in col_type:
-#                             values[col_name] = st.number_input(f"New value for {col_name}", step=0.01)
-#                         else:
-#                             values[col_name] = st.text_input(f"New value for {col_name}")
-                
-#                 if st.button("Update Record"):
-#                     try:
-#                         cursor = connection.cursor()
-#                         set_clause = ', '.join([f"{k} = %s" for k in values.keys()])
-#                         query = f"UPDATE {selected_table} SET {set_clause} WHERE {primary_key} = %s"
-#                         cursor.execute(query, list(values.values()) + [record_id])
-#                         connection.commit()
-#                         cursor.close()
-#                         st.success("Record updated successfully!")
-#                     except mysql.connector.Error as e:
-#                         st.error(f"Error updating record: {e}")
-        
-#         elif operation == "Delete":
-#             df = get_table_data(connection, selected_table)
-#             if df is not None:
-#                 st.dataframe(df)
-                
-#                 # Get primary key for the table
-#                 cursor = connection.cursor()
-#                 cursor.execute(f"SHOW KEYS FROM {selected_table} WHERE Key_name = 'PRIMARY'")
-#                 primary_key = cursor.fetchone()[4]
-#                 cursor.close()
-                
-#                 # Select record to delete
-#                 record_id = st.number_input(f"Enter {primary_key} of record to delete", min_value=1)
-                
-#                 if st.button("Delete Record"):
-#                     try:
-#                         cursor = connection.cursor()
-#                         cursor.execute(f"DELETE FROM {selected_table} WHERE {primary_key} = %s", (record_id,))
-#                         connection.commit()
-#                         cursor.close()
-#                         st.success("Record deleted successfully!")
-#                     except mysql.connector.Error as e:
-#                         st.error(f"Error deleting record: {e}")
-
 def admin_panel(connection):
     st.title("Admin Panel")
     
     # View non-admin users and allow updates
     st.header("Manage Users")
     
+
     # Fetch all non-admin users
     cursor = connection.cursor()
     cursor.execute("SELECT id, username, email, is_admin FROM users WHERE is_admin = FALSE")
