@@ -484,44 +484,6 @@ def user_view():
                     st.write("Column names:", ", ".join(df.columns))
         mydb.close()
 
-# def main():
-#     st.title("MySQL Database Explorer")
-    
-#     if 'logged_in' not in st.session_state:
-#         st.session_state.logged_in = False
-#     if 'is_admin' not in st.session_state:
-#         st.session_state.is_admin = False
-
-#     if not st.session_state.logged_in:
-#         menu = ["Login", "Sign Up"]
-#         choice = st.sidebar.selectbox("Menu", menu)
-        
-#         if choice == "Login":
-#             login_page()
-#         else:
-#             signup_page()
-#     else:
-#         st.sidebar.success(f"Welcome {st.session_state.username}")
-#         if st.session_state.is_admin:
-#             menu = ["View Data", "Admin Panel",]
-#         else:
-#             menu = ["View Data", "Flight Search"]
-
-#         choice = st.sidebar.selectbox("Menu", menu)
-
-#         #admin does not have flight search option
-#         if choice == "Admin Panel" and st.session_state.is_admin:
-#             mydb = connect_to_database()
-#             if mydb:
-#                 admin_panel(mydb)
-#                 mydb.close()
-#         else:
-#             user_view()
-
-#         if st.sidebar.button("Logout"):
-#             st.session_state.logged_in = False
-#             st.session_state.is_admin = False
-#             st.rerun()
 
 
 def main():
