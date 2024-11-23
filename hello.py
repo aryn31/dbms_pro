@@ -488,62 +488,34 @@ def signup_page():
         else:
             st.warning("Please fill all fields!")
 
-
-# def main():
-#     st.title("MySQL Database Explorer")
-
-#     if 'logged_in' not in st.session_state:
-#         st.session_state.logged_in=False
-#     if 'signup_success' not in st.session_state:
-#         st.session_state.signup_success=False
-
-#     # Sidebar for navigation
-#     if not st.session_state.logged_in:
-#         menu = ["Login", "Sign Up"]
-#         choice = st.sidebar.selectbox("Menu", menu)
-        
-#         if choice == "Login":
-#             login_page()
-#         else:
-#             signup_page()
-
-
-#     # Main application (only shown when logged in)
-#     if st.session_state.logged_in:
-#         st.sidebar.success(f"Welcome {st.session_state.username}")
-#         if st.sidebar.button("Logout"):
-#             st.session_state.logged_in = False
-#             st.rerun()
-            
-#         mydb = connect_to_database()
-#         if mydb:
-#             st.success("Successfully connected to the database!")
-#             tables = get_all_tables(mydb)
-            
-#             if tables:
-#                 selected_table = st.selectbox("Select a table to view:", tables)
-#                 if selected_table:
-#                     df = get_table_data(mydb, selected_table)
-#                     if df is not None:
-#                         st.subheader(f"Data from table: {selected_table}")
-#                         st.dataframe(df)
-                        
-#                         # Add download button
-#                         csv = df.to_csv(index=False)
-#                         st.download_button(
-#                             label="Download table as CSV",
-#                             data=csv,
-#                             file_name=f"{selected_table}.csv",
-#                             mime="text/csv"
-#                         )
-                        
-#                         # Display table information
-#                         st.subheader("Table Information")
-#                         st.write(f"Number of Rows: {len(df)}")
-#                         st.write(f"Number of columns: {len(df.columns)}")
-#                         st.write("Column names:", ", ".join(df.columns))
-            
-#             mydb.close()
+def user_view():
+    mydb = connect_to_database()
+    if mydb:
+        tables = get_all_tables(mydb)
+        # ... (rest of your existing view data code)
+        if tables:
+            selected_table = st.selectbox("Select a table to view:", tables)
+            if selected_table:
+                df = get_table_data(mydb, selected_table)
+                if df is not None:
+                    st.subheader(f"Data from table: {selected_table}")
+                    st.dataframe(df)
+                    
+                    # Add download button
+                    csv = df.to_csv(index=False)
+                    st.download_button(
+                        label="Download table as CSV",
+                        data=csv,
+                        file_name=f"{selected_table}.csv",
+                        mime="text/csv"
+                    )
+                    
+                    # Display table information
+                    st.subheader("Table Information")
+                    st.write(f"Number of Rows: {len(df)}")
+                    st.write(f"Number of columns: {len(df.columns)}")
+                    st.write("Column names:", ", ".join(df.columns))
+        mydb.close()
 
 def main():
     st.title("MySQL Database Explorer")
@@ -579,62 +551,9 @@ def main():
                     mydb.close()
             else:
                 # Regular data viewing functionality
-                mydb = connect_to_database()
-                if mydb:
-                    tables = get_all_tables(mydb)
-                    # ... (rest of your existing view data code)
-                    if tables:
-                        selected_table = st.selectbox("Select a table to view:", tables)
-                        if selected_table:
-                            df = get_table_data(mydb, selected_table)
-                            if df is not None:
-                                st.subheader(f"Data from table: {selected_table}")
-                                st.dataframe(df)
-                                
-                                # Add download button
-                                csv = df.to_csv(index=False)
-                                st.download_button(
-                                    label="Download table as CSV",
-                                    data=csv,
-                                    file_name=f"{selected_table}.csv",
-                                    mime="text/csv"
-                                )
-                                
-                                # Display table information
-                                st.subheader("Table Information")
-                                st.write(f"Number of Rows: {len(df)}")
-                                st.write(f"Number of columns: {len(df.columns)}")
-                                st.write("Column names:", ", ".join(df.columns))
-                    mydb.close()
+                user_view()
         else:
-            # Regular user view
-            mydb = connect_to_database()
-            if mydb:
-                tables = get_all_tables(mydb)
-                # ... (rest of your existing view data code)
-                if tables:
-                        selected_table = st.selectbox("Select a table to view:", tables)
-                        if selected_table:
-                            df = get_table_data(mydb, selected_table)
-                            if df is not None:
-                                st.subheader(f"Data from table: {selected_table}")
-                                st.dataframe(df)
-                                
-                                # Add download button
-                                csv = df.to_csv(index=False)
-                                st.download_button(
-                                    label="Download table as CSV",
-                                    data=csv,
-                                    file_name=f"{selected_table}.csv",
-                                    mime="text/csv"
-                                )
-                                
-                                # Display table information
-                                st.subheader("Table Information")
-                                st.write(f"Number of Rows: {len(df)}")
-                                st.write(f"Number of columns: {len(df.columns)}")
-                                st.write("Column names:", ", ".join(df.columns))
-                mydb.close()
+            user_view()
         
         if st.sidebar.button("Logout"):
             st.session_state.logged_in = False
