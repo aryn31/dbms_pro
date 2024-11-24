@@ -73,7 +73,6 @@ def authenticate_user(connection, username, password):
         return user
     return None
 
-
 def create_user(connection, username, password, email, is_admin=False):
     try:
         cursor = connection.cursor()
@@ -274,43 +273,6 @@ def admin_panel(connection):
     else:
         table_operations(connection)
 
-# def login_page():
-#     st.subheader("Login")
-
-#     # Step 1: Ask for user type
-#     user_type = st.radio("Select User Type", ("Admin", "Regular", "Manufacturer"))
-
-#     # Step 2: Based on user type, ask for username and password
-#     if user_type == "Admin":
-#         username_placeholder = "admin"
-#         password_placeholder = "admin123"
-#     elif user_type == "Regular":
-#         username_placeholder = "user"
-#         password_placeholder = "user123"
-#     else:  # Manufacturer
-#         username_placeholder = "manufacturer"
-#         password_placeholder = "manufacturer123"
-
-#     username = st.text_input(f"Username for {user_type}", placeholder=username_placeholder)
-#     password = st.text_input(f"Password for {user_type}", type="password", placeholder=password_placeholder)
-
-#     # username = st.text_input("Username", key="login_username")
-#     # password = st.text_input("Password", type="password", key="login_password")
-
-#     if st.button("Login"):
-#         connection = connect_to_database()
-#         if connection:
-#             user = authenticate_user(connection, username, password)
-#             if user:
-#                 st.session_state.logged_in = True
-#                 st.session_state.username = username
-#                 st.session_state.is_admin = user['is_admin']  # Save admin status in session state
-#                 st.success("Logged in successfully!")
-#                 st.rerun()  # Reload the app to refresh the UI with admin options
-#             else:
-#                 st.error("Invalid username or password")
-#             connection.close()
-
 def login_page():
     st.subheader("Login")
 
@@ -339,31 +301,7 @@ def login_page():
             else:
                 st.error("Invalid username or password")
             connection.close()
-
-
-
-# def signup_page():
-#     st.subheader("Create New Account")
-#     username = st.text_input("Username", key="signup_username")
-#     password = st.text_input("Password", type="password", key="signup_password")
-#     email = st.text_input("Email")
-    
-
-#     # Admin option checkbox
-#     is_admin = st.checkbox("Grant Admin Privileges")
-
-#     if st.button("Sign Up"):
-#         if username and password and email:
-#             mydb = connect_to_database()
-#             if mydb:
-#                 if create_user(mydb, username, password, email, is_admin):
-#                     st.success("Account created successfully! Please login.")
-#                     st.session_state.signup_success = True
-#                     st.rerun()  # Reload the page to show login option
-#                 mydb.close()
-#         else:
-#             st.warning("Please fill all fields!")
-
+            
 def signup_page():
     st.subheader("Create New Account")
     
@@ -691,63 +629,6 @@ def manufacturer_dashboard():
         mydb.close()
     else:
         st.error("Failed to connect to the database.")
-
-
-
-
-
-
-
-
-
-
-
-
-
-# def main():
-#     st.title("MySQL Database Explorer")
-
-#     if 'logged_in' not in st.session_state:
-#         st.session_state.logged_in = False
-#     if 'is_admin' not in st.session_state:
-#         st.session_state.is_admin = False
-
-#     if not st.session_state.logged_in:
-#         menu = ["Login", "Sign Up"]
-#         choice = st.sidebar.selectbox("Menu", menu)
-
-#         if choice == "Login":
-#             login_page()
-#         else:
-#             signup_page()
-#     else:
-#         st.sidebar.success(f"Welcome {st.session_state.username}")
-
-#         # Debugging: Show role
-#         st.write(f"Logged in as: {st.session_state.username}")
-
-#         if st.session_state.is_admin:
-#             menu = ["View Data", "Admin Panel"]
-#         else:
-#             menu = ["View Data", "Flight Search"]
-
-#         choice = st.sidebar.selectbox("Menu", menu)
-
-#         # Check if the user has selected "Flight Search"
-#         if choice == "Flight Search" and not st.session_state.is_admin:
-#             flight_search_view()
-#         elif choice == "Admin Panel" and st.session_state.is_admin:
-#             mydb = connect_to_database()
-#             if mydb:
-#                 admin_panel(mydb)
-#                 mydb.close()
-#         else:
-#             user_view()
-
-#         if st.sidebar.button("Logout"):
-#             st.session_state.logged_in = False
-#             st.session_state.is_admin = False
-#             st.rerun()
 
 def main():
     st.title("MySQL Database Explorer")
