@@ -659,9 +659,9 @@ def main():
         if st.session_state.is_admin:
             menu = ["View Data", "Admin Panel"]
         elif st.session_state.user_type == "Manufacturer":
-            menu = ["View Data", "Manufacturer Dashboard"]
+            menu = ["Manufacturer Dashboard"]
         else:
-            menu = ["View Data", "Flight Search"]
+            menu = ["Flight Search"]
 
         choice = st.sidebar.selectbox("Menu", menu)
 
