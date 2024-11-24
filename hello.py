@@ -4,7 +4,6 @@ import pandas as pd
 import hashlib
 from datetime import datetime
 
-
 def connect_to_database():
     try:
         connection = mysql.connector.connect(
@@ -144,6 +143,15 @@ def manage_user(connection):
                         st.success("User details updated successfully!")
                     except mysql.connector.Error as e:
                         st.error(f"Error updating user details: {e}")
+                if st.button("Delete User"):
+                    try:
+                        cursor = connection.cursor()
+                        cursor.execute("DELETE FROM users WHERE id = %s", (user_id,))
+                        connection.commit()
+                        cursor.close()
+                        st.success(f"User '{username}' deleted successfully!")
+                    except mysql.connector.Error as e:
+                        st.error(f"Error deleting user: {e}")
         else:
             st.write("No non-admin users found.")
 
@@ -281,8 +289,8 @@ def login_page():
     user_type = st.radio("Select User Type", ("Admin", "Regular", "Manufacturer"))
 
     # Username and password fields
-    username = st.text_input(f"Username for {user_type}")
-    password = st.text_input(f"Password for {user_type}", type="password")
+    username = st.text_input(f"👤 Username for {user_type}")
+    password = st.text_input(f"🔑 Password for {user_type}", type="password")
 
     if st.button("Login"):
         connection = connect_to_database()
@@ -314,7 +322,18 @@ def signup_page():
     # Dropdown for user type selection
     user_type = st.selectbox("Select User Type", ["Admin", "Regular", "Manufacturer"])
 
-    if st.button("Sign Up"):
+    # Display a success message if the account was just created
+    if st.session_state.get("signup_success", False):
+        st.success("Account created successfully! Please login.")
+        if st.button("Sign Up Another Account"):  # Option to show signup again
+            st.session_state.signup_success = False
+            st.rerun()
+        # if st.button("Go to Login"):
+        #     st.session_state.signup_success = False
+        #     st.rerun()
+            
+
+    elif st.button("Sign Up"):
         if username and password and email:
             mydb = connect_to_database()
             if mydb:
@@ -323,14 +342,15 @@ def signup_page():
                 
                 # Create the user with the selected user type
                 if create_user(mydb, username, password, email, is_admin, user_type):
-                    st.success("Account created successfully! Please login.")
+                    # Set a flag for success
                     st.session_state.signup_success = True
-                    st.rerun()  # Reload the page to show the login option
+                    st.rerun()  # Reload page to show the success message
                 else:
                     st.error("Error creating account. Username or email may already exist.")
                 mydb.close()
         else:
             st.warning("Please fill all fields!")
+
 
 def create_user(mydb, username, password, email, is_admin, user_type):
     """Create a new user in the database."""
@@ -353,7 +373,6 @@ def create_user(mydb, username, password, email, is_admin, user_type):
         return False
     finally:
         cursor.close()
-
 
 def get_airport_names(mydb):
     """
@@ -634,7 +653,7 @@ def manufacturer_dashboard():
 def main():
     # st.sidebar.image("logo.png", use_container_width=True)  # Logo in the sidebar
     # st.title("FlyingMotors Ltd.")
-    
+
     # Display logo and company name side by side
     col1, col2 = st.columns([1, 6])  # Adjust column widths as needed
     with col1:
@@ -695,7 +714,6 @@ def main():
             st.session_state.is_admin = False
             st.session_state.user_type = None
             st.rerun()
-
 
 if __name__ == "__main__":
     main()
