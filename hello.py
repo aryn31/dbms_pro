@@ -4,6 +4,7 @@ import pandas as pd
 import hashlib
 from datetime import datetime
 
+
 def connect_to_database():
     try:
         connection = mysql.connector.connect(
@@ -631,7 +632,15 @@ def manufacturer_dashboard():
         st.error("Failed to connect to the database.")
 
 def main():
-    st.title("MySQL Database Explorer")
+    # st.sidebar.image("logo.png", use_container_width=True)  # Logo in the sidebar
+    # st.title("FlyingMotors Ltd.")
+    
+    # Display logo and company name side by side
+    col1, col2 = st.columns([1, 6])  # Adjust column widths as needed
+    with col1:
+        st.image("logo.png", use_container_width=True)  # Display logo in the first column
+    with col2:
+        st.title("FlyingMotors Ltd.")  # Display company name in the second column
 
     # Initialize session state
     if 'logged_in' not in st.session_state:

@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#ff6347"              # A bright coral color for primary elements
+backgroundColor = "#1e1e2f"           # A dark, modern background
+secondaryBackgroundColor = "#28293d"  # A slightly lighter shade for sidebars or secondary panels
+textColor = "#ffffff"                 # White text for better readability on dark backgrounds
+font = "sans serif"                        # Serif font for a classy and professional look
