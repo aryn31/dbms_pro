@@ -237,12 +237,74 @@ def table_operations(connection):
                         st.error(f"Error inserting record: {e}")
         
         elif operation == "Update":
-            # Code for Update
-            pass
+                df = get_table_data(connection, selected_table)
+                if df is not None:
+                    st.dataframe(df)
+                    
+                    # Get primary key for the table
+                    cursor = connection.cursor()
+                    cursor.execute(f"SHOW KEYS FROM {selected_table} WHERE Key_name = 'PRIMARY'")
+                    primary_key = cursor.fetchone()[4]  # Column name of primary key
+                    
+                    # Select record to update
+                    record_id = st.number_input(f"Enter {primary_key} of record to update", min_value=1)
+                    
+                    # Get column names and types
+                    cursor.execute(f"DESCRIBE {selected_table}")
+                    columns = cursor.fetchall()
+                    cursor.close()
+                    
+                    # Create input fields for each column
+                    values = {}
+                    for col in columns:
+                        col_name = col[0]
+                        col_type = col[1]
+                        if col_name not in ['id', 'created_at', primary_key]:  # Skip primary key and auto-generated columns
+                            if 'int' in col_type:
+                                values[col_name] = st.number_input(f"New value for {col_name}", step=1)
+                            elif 'float' in col_type or 'double' in col_type:
+                                values[col_name] = st.number_input(f"New value for {col_name}", step=0.01)
+                            else:
+                                values[col_name] = st.text_input(f"New value for {col_name}")
+                    
+                    if st.button("Update Record"):
+                        try:
+                            cursor = connection.cursor()
+                            set_clause = ', '.join([f"{k} = %s" for k in values.keys()])
+                            query = f"UPDATE {selected_table} SET {set_clause} WHERE {primary_key} = %s"
+                            cursor.execute(query, list(values.values()) + [record_id])
+                            connection.commit()
+                            cursor.close()
+                            st.success("Record updated successfully!")
+                        except mysql.connector.Error as e:
+                            st.error(f"Error updating record: {e}")
+
+
         
         elif operation == "Delete":
-            # Code for Delete
-            pass
+                df = get_table_data(connection, selected_table)
+                if df is not None:
+                    st.dataframe(df)
+                    
+                    # Get primary key for the table
+                    cursor = connection.cursor()
+                    cursor.execute(f"SHOW KEYS FROM {selected_table} WHERE Key_name = 'PRIMARY'")
+                    primary_key = cursor.fetchone()[4]
+                    cursor.close()
+                    
+                    # Select record to delete
+                    record_id = st.number_input(f"Enter {primary_key} of record to delete", min_value=1)
+                    
+                    if st.button("Delete Record"):
+                        try:
+                            cursor = connection.cursor()
+                            cursor.execute(f"DELETE FROM {selected_table} WHERE {primary_key} = %s", (record_id,))
+                            connection.commit()
+                            cursor.close()
+                            st.success("Record deleted successfully!")
+                        except mysql.connector.Error as e:
+                            st.error(f"Error deleting record: {e}")
+
 
 
 def schedule_flight_and_assign_crew(connection, flight_data):
