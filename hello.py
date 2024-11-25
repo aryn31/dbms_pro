@@ -1,6 +1,5 @@
 import streamlit as st
 import mysql.connector
-from mysql.connector import Error
 import pandas as pd
 import hashlib
 from datetime import datetime
@@ -546,9 +545,6 @@ def get_airport_names(mydb):
         return []
 
 def flight_search_view():
-    """
-    Streamlit view for flight search with dropdowns for full airport names.
-    """
     # Connect to the database
     mydb = connect_to_database()
 
