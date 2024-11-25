@@ -198,7 +198,7 @@ def table_operations(connection):
                         }
                         
                         # Schedule flight and assign crew
-                        schedule_flight_and_assign_crew(connection, flight_data)
+                        schedule_flight_and_manage_crew(connection,flight_data)
                     except mysql.connector.Error as e:
                         if "Duplicate entry" in str(e):
                             st.error("Same flight is going somewhere else at the entered time.")
@@ -238,6 +238,7 @@ def table_operations(connection):
         
         elif operation == "Update":
                 df = get_table_data(connection, selected_table)
+                
                 if df is not None:
                     st.dataframe(df)
                     
@@ -282,96 +283,138 @@ def table_operations(connection):
 
         
         elif operation == "Delete":
-                df = get_table_data(connection, selected_table)
-                if df is not None:
-                    st.dataframe(df)
-                    
-                    # Get primary key for the table
-                    cursor = connection.cursor()
-                    cursor.execute(f"SHOW KEYS FROM {selected_table} WHERE Key_name = 'PRIMARY'")
-                    primary_key = cursor.fetchone()[4]
-                    cursor.close()
-                    
-                    # Select record to delete
-                    record_id = st.number_input(f"Enter {primary_key} of record to delete", min_value=1)
-                    
-                    if st.button("Delete Record"):
-                        try:
-                            cursor = connection.cursor()
-                            cursor.execute(f"DELETE FROM {selected_table} WHERE {primary_key} = %s", (record_id,))
-                            connection.commit()
-                            cursor.close()
-                            st.success("Record deleted successfully!")
-                        except mysql.connector.Error as e:
-                            st.error(f"Error deleting record: {e}")
+            df = get_table_data(connection, selected_table)
+            if selected_table == "Flights":
+                # Input field for FlightID (as only this is required for deletion)
+                flight_id = st.text_input("Enter Flight ID to Delete")
+                
+                if st.button("Delete Record"):
+                    try:
+                        # Prepare flight data for deletion
+                        if not flight_id:
+                            st.error("Please enter a Flight ID.")
+                            return
 
+                        # Call the delete operation
+                        flight_data = {'FlightID': flight_id}
+                        schedule_flight_and_manage_crew(connection, flight_data, action="delete")
+                        
+                    except mysql.connector.Error as e:
+                        st.error(f"Error during deletion: {e}")
+                        
+            if df is not None:
+                st.dataframe(df)
 
-
-def schedule_flight_and_assign_crew(connection, flight_data):
+def schedule_flight_and_manage_crew(connection, flight_data=None, action="insert"):
     try:
         cursor = connection.cursor()
 
-        # Step 1: Insert the flight
-        st.write("Inserting flight record...")
-        cursor.execute('''
-            INSERT INTO Flights (FlightID, AircraftID, FlightNumber, DepartureAirport, ArrivalAirport, DepartureTime, ArrivalTime)
-            VALUES (%s, %s, %s, %s, %s, %s, %s);
-        ''', (
-            flight_data['FlightID'], 
-            flight_data['AircraftID'], 
-            flight_data['FlightNumber'], 
-            flight_data['DepartureAirport'], 
-            flight_data['ArrivalAirport'], 
-            flight_data['DepartureTime'], 
-            flight_data['ArrivalTime']
-        ))
-        st.write("Flight record inserted!")
-
-        # Step 2: Find and assign available crew members
-        roles = ['Pilot', 'Co-Pilot', 'Flight Attendant']
-        assigned_crew = {}
-
-        for role in roles:
-            st.write(f"Assigning crew for role: {role}")
-            # Updated query to check overlapping schedules
+        if action == "insert":
+            # Step 1: Insert the flight
+            st.write("Inserting flight record...")
             cursor.execute('''
-                SELECT c.CrewID
-                FROM Crew c
-                WHERE c.Role = %s
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM CrewAssignment ca
-                      JOIN Flights f ON ca.FlightID = f.FlightID
-                      WHERE ca.CrewID = c.CrewID
-                        AND (
-                            %s < f.ArrivalTime AND %s > f.DepartureTime
-                        )
-                  )
-                LIMIT 1;
-            ''', (role, flight_data['DepartureTime'], flight_data['ArrivalTime']))
+                INSERT INTO Flights (FlightID, AircraftID, FlightNumber, DepartureAirport, ArrivalAirport, DepartureTime, ArrivalTime)
+                VALUES (%s, %s, %s, %s, %s, %s, %s);
+            ''', (
+                flight_data['FlightID'], 
+                flight_data['AircraftID'], 
+                flight_data['FlightNumber'], 
+                flight_data['DepartureAirport'], 
+                flight_data['ArrivalAirport'], 
+                flight_data['DepartureTime'], 
+                flight_data['ArrivalTime']
+            ))
+            st.write("Flight record inserted!")
 
-            result = cursor.fetchone()
-            if result:
-                assigned_crew[role] = result[0]
-            else:
-                raise Exception(f"No available crew member found for role: {role}")
+            # Step 2: Find and assign available crew members
+            roles = ['Pilot', 'Co-Pilot', 'Flight Attendant']
+            assigned_crew = {}
 
-        # Step 3: Assign crew to the flight
-        for role, crew_id in assigned_crew.items():
-            st.write(f"Assigning {role} with CrewID {crew_id} to FlightID {flight_data['FlightID']}")
+            for role in roles:
+                st.write(f"Assigning crew for role: {role}")
+                cursor.execute('''
+                    SELECT c.CrewID
+                    FROM Crew c
+                    WHERE c.Role = %s
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM CrewAssignment ca
+                          JOIN Flights f ON ca.FlightID = f.FlightID
+                          WHERE ca.CrewID = c.CrewID
+                            AND (
+                                %s < f.ArrivalTime AND %s > f.DepartureTime
+                            )
+                      )
+                    LIMIT 1;
+                ''', (role, flight_data['DepartureTime'], flight_data['ArrivalTime']))
+
+                result = cursor.fetchone()
+                if result:
+                    assigned_crew[role] = result[0]
+                else:
+                    raise Exception(f"No available crew member found for role: {role}")
+
+            # Step 3: Assign crew to the flight
+            for role, crew_id in assigned_crew.items():
+                st.write(f"Assigning {role} with CrewID {crew_id} to FlightID {flight_data['FlightID']}")
+                cursor.execute('''
+                    INSERT INTO CrewAssignment (CrewID, FlightID, AssignedAircraftID)
+                    VALUES (%s, %s, %s);
+                ''', (crew_id, flight_data['FlightID'], flight_data['AircraftID']))
+
+            connection.commit()
+            st.success("Flight scheduled and crew assigned successfully!")
+
+        elif action == "update":
+            # Update flight details
+            st.write("Updating flight record...")
             cursor.execute('''
-                INSERT INTO CrewAssignment (CrewID, FlightID, AssignedAircraftID)
-                VALUES (%s, %s, %s);
-            ''', (crew_id, flight_data['FlightID'], flight_data['AircraftID']))
+                UPDATE Flights
+                SET AircraftID = %s, FlightNumber = %s, DepartureAirport = %s, ArrivalAirport = %s,
+                    DepartureTime = %s, ArrivalTime = %s
+                WHERE FlightID = %s;
+            ''', (
+                flight_data['AircraftID'], 
+                flight_data['FlightNumber'], 
+                flight_data['DepartureAirport'], 
+                flight_data['ArrivalAirport'], 
+                flight_data['DepartureTime'], 
+                flight_data['ArrivalTime'],
+                flight_data['FlightID']
+            ))
+            st.write("Flight record updated!")
 
-        # Commit the transaction
-        connection.commit()
-        st.success("Flight scheduled and crew assigned successfully!")
+            # Optional: Update crew assignment (if needed)
+            st.info("You may need to reassign crew members if flight timings are changed.")
+            # Logic for reassigning can be similar to the insert section
+
+            connection.commit()
+            st.success("Flight updated successfully!")
+
+        elif action == "delete":
+            # Step 1: Delete associated crew assignments
+            st.write(f"Deleting crew assignments for FlightID {flight_data['FlightID']}...")
+            cursor.execute('''
+                DELETE FROM CrewAssignment
+                WHERE FlightID = %s;
+            ''', (flight_data['FlightID'],))
+            st.write("Crew assignments deleted!")
+
+            # Step 2: Delete the flight record
+            st.write(f"Deleting flight record for FlightID {flight_data['FlightID']}...")
+            cursor.execute('''
+                DELETE FROM Flights
+                WHERE FlightID = %s;
+            ''', (flight_data['FlightID'],))
+            st.write("Flight record deleted!")
+
+            connection.commit()
+            st.success("Flight and associated crew assignments deleted successfully!")
 
     except Exception as e:
         # Roll back the transaction in case of failure
         connection.rollback()
-        st.error(f"Error scheduling flight: {str(e)}")
+        st.error(f"Error during {action}: {str(e)}")
 
     finally:
         cursor.close()
@@ -753,118 +796,6 @@ def manufacturer_dashboard():
         mydb.close()
     else:
         st.error("Failed to connect to the database.")
-
-# def schedule_flight_and_assign_crew(connection, flight_data):
-#     # try:
-#         cursor = connection.cursor()
-
-#         # Start a transaction
-#         # connection.start_transaction()
-
-#         # Step 1: Add the flight into the Flights table
-#         cursor.execute('''
-#             INSERT INTO Flights 
-#             (FlightID, AircraftID, FlightNumber, DepartureAirport, ArrivalAirport, DepartureTime, ArrivalTime)
-#             VALUES (%s, %s, %s, %s, %s, %s, %s);
-#         ''', (
-#             flight_data['FlightID'], 
-#             flight_data['AircraftID'], 
-#             flight_data['FlightNumber'], 
-#             flight_data['DepartureAirport'], 
-#             flight_data['ArrivalAirport'], 
-#             flight_data['DepartureTime'], 
-#             flight_data['ArrivalTime']
-#         ))
-
-#         # # Step 2: Assign available crew for the flight
-#         # roles = ['Pilot', 'Co-Pilot', 'Flight Attendant']
-#         # assigned_crew = {}
-
-#         # for role in roles:
-#         #     # Check if the crew member is available (not assigned to another flight at the same time)
-#         #     cursor.execute('''
-#         #         SELECT c.CrewID 
-#         #         FROM Crew c
-#         #         LEFT JOIN CrewAssignment ca ON c.CrewID = ca.CrewID
-#         #         LEFT JOIN Flights f ON ca.FlightID = f.FlightID
-#         #         WHERE c.Role = %s
-#         #           AND (
-#         #               ca.FlightID IS NULL -- Not assigned to any flight
-#         #               OR NOT (
-#         #                   %s < f.ArrivalTime
-#         #                   AND %s > f.DepartureTime
-#         #               )
-#         #           )
-#         #         LIMIT 1;
-#         #     ''', (
-#         #         role, 
-#         #         flight_data['DepartureTime'], 
-#         #         flight_data['ArrivalTime']
-#         #     ))
-
-#         #     result = cursor.fetchone()
-#         #     if result:
-#         #         assigned_crew[role] = result[0]
-#         #     else:
-#         #         raise Exception(f"No available crew member found for role: {role}")
-
-#         # Step 3: Assign crew members to the flight (insert into CrewAssignment table)
-#         # for role, crew_id in assigned_crew.items():
-#         #     cursor.execute('''
-#         #         INSERT INTO CrewAssignment (CrewID, FlightID, AssignedAircraftID)
-#         #         VALUES (%s, %s, %s);
-#         #     ''', (
-#         #         crew_id, 
-#         #         flight_data['FlightID'], 
-#         #         flight_data['AircraftID']
-#         #     ))
-
-#         # # Commit the transaction if everything is successful
-#         # connection.commit()
-#         # print("Flight scheduled and crew assigned successfully!")
-
-#     # except Exception as e:
-#     #     # Rollback the transaction if any error occurs
-#     #     # connection.rollback()
-#     #     print(f"Error scheduling flight: {e}")
-
-#     # finally:
-#         # if connection.is_connected():
-#         #     cursor.close()
-
-# # def schedule_flight_and_assign_crew(connection, flight_data):
-# #     try:
-# #         cursor = connection.cursor()
-
-# #         # Step 1: Add the flight into the Flights table
-# #         cursor.execute('''
-# #             INSERT INTO Flights 
-# #             (FlightID, AircraftID, FlightNumber, DepartureAirport, ArrivalAirport, DepartureTime, ArrivalTime)
-# #             VALUES (%s, %s, %s, %s, %s, %s, %s);
-# #         ''', (
-# #             flight_data['FlightID'], 
-# #             flight_data['AircraftID'], 
-# #             flight_data['FlightNumber'], 
-# #             flight_data['DepartureAirport'], 
-# #             flight_data['ArrivalAirport'], 
-# #             flight_data['DepartureTime'], 
-# #             flight_data['ArrivalTime']
-# #         ))
-
-# #         # Commit the transaction
-# #         connection.commit()
-
-# #         # Success message
-# #         st.success("Flight scheduled successfully!")
-
-# #     except Exception as e:
-# #         # Rollback if any error occurs
-# #         connection.rollback()
-# #         st.error(f"Error scheduling flight: {e}")
-
-# #     finally:
-# #         if connection.is_connected():
-# #             cursor.close()
 
 def main():
     # st.sidebar.image("logo.png", use_container_width=True)  # Logo in the sidebar
