@@ -202,7 +202,11 @@ def table_operations(connection):
                         cursor.close()
                         st.success("Record inserted successfully!")
                     except mysql.connector.Error as e:
-                        st.error(f"Error inserting record: {e}")
+                        # st.error(f"Error inserting record: {e}")
+                        if "Duplicate entry" in str(e):  # Check for specific error message
+                            st.error("Same flight is going somewhere else at the entered time.")
+                        else:
+                            st.error(f"Error inserting record: {e}")
             
             elif operation == "Update":
                 df = get_table_data(connection, selected_table)
@@ -350,7 +354,6 @@ def signup_page():
                 mydb.close()
         else:
             st.warning("Please fill all fields!")
-
 
 def create_user(mydb, username, password, email, is_admin, user_type):
     """Create a new user in the database."""
