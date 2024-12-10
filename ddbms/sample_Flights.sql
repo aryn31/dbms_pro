@@ -1,0 +1,59 @@
+-- MySQL dump 10.13  Distrib 8.0.36, for macos14 (arm64)
+--
+-- Host: 127.0.0.1    Database: sample
+-- ------------------------------------------------------
+-- Server version	8.4.0
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
+
+--
+-- Table structure for table `Flights`
+--
+
+DROP TABLE IF EXISTS `Flights`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `Flights` (
+  `FlightID` int NOT NULL,
+  `AircraftID` int DEFAULT NULL,
+  `FlightNumber` varchar(20) DEFAULT NULL,
+  `DepartureAirport` varchar(100) DEFAULT NULL,
+  `ArrivalAirport` varchar(100) DEFAULT NULL,
+  `DepartureTime` datetime DEFAULT NULL,
+  `ArrivalTime` datetime DEFAULT NULL,
+  PRIMARY KEY (`FlightID`),
+  UNIQUE KEY `FlightNumber` (`FlightNumber`),
+  UNIQUE KEY `UniqueAircraftSchedule` (`AircraftID`,`DepartureTime`),
+  CONSTRAINT `flights_ibfk_1` FOREIGN KEY (`AircraftID`) REFERENCES `Aircraft` (`AircraftID`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `Flights`
+--
+
+LOCK TABLES `Flights` WRITE;
+/*!40000 ALTER TABLE `Flights` DISABLE KEYS */;
+INSERT INTO `Flights` VALUES (1,1,'FL1234','JFK','LAX','2024-11-20 08:00:00','2024-11-20 11:00:00'),(2,4,'FL5678','LAX','ORD','2024-11-21 14:00:00','2024-11-21 18:00:00'),(3,5,'FL9101','ORD','MIA','2024-11-22 09:30:00','2024-11-22 13:00:00'),(77,2,'5324yy','DFW','DEN','2024-11-20 08:00:00','2024-11-20 11:00:00'),(78,3,'5324yyh','DFW','DEN','2024-11-20 08:00:00','2024-11-20 11:00:00'),(777,8,'5324','DFW','DEN','2024-11-20 08:00:00','2024-11-20 11:00:00'),(782,7,'5324yyhdd','DFW','DEN','2024-11-20 08:00:00','2024-11-20 11:00:00');
+/*!40000 ALTER TABLE `Flights` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+
+-- Dump completed on 2024-12-10 19:09:51
