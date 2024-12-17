@@ -460,6 +460,7 @@ def login_page():
             connection.close()
             
 def signup_page():
+
     st.subheader("Create New Account")
     
     # Input fields for username, password, and email
