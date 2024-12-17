@@ -2,6 +2,7 @@ import streamlit as st
 import mysql.connector
 import pandas as pd
 import hashlib
+import re
 from datetime import datetime
 
 def connect_to_database():
@@ -469,32 +470,48 @@ def signup_page():
     # Dropdown for user type selection
     user_type = st.selectbox("Select User Type", ["Admin", "Regular", "Manufacturer"])
 
+    # Email validation regex: (something)(number)@gmail.com
+    email_pattern = r"^[a-zA-Z]+[0-9]+@gmail\.com$"
+
+    # Function to check if username already exists
+    def username_exists(mydb, username):
+        cursor = mydb.cursor()
+        query = "SELECT COUNT(*) FROM users WHERE username = %s"
+        cursor.execute(query, (username,))
+        count = cursor.fetchone()[0]
+        cursor.close()
+        return count > 0
+
     # Display a success message if the account was just created
     if st.session_state.get("signup_success", False):
         st.success("Account created successfully! Please login.")
         if st.button("Sign Up Another Account"):  # Option to show signup again
             st.session_state.signup_success = False
             st.rerun()
-        # if st.button("Go to Login"):
-        #     st.session_state.signup_success = False
-        #     st.rerun()
             
-
     elif st.button("Sign Up"):
         if username and password and email:
-            mydb = connect_to_database()
-            if mydb:
-                # Automatically set `is_admin` based on user type
-                is_admin = user_type == "Admin"
-                
-                # Create the user with the selected user type
-                if create_user(mydb, username, password, email, is_admin, user_type):
-                    # Set a flag for success
-                    st.session_state.signup_success = True
-                    st.rerun()  # Reload page to show the success message
-                else:
-                    st.error("Error creating account. Username or email may already exist.")
-                mydb.close()
+            # Validate email format
+            if not re.match(email_pattern, email):
+                st.error("Invalid email format! Use 'something(number)@gmail.com'.")
+            else:
+                mydb = connect_to_database()
+                if mydb:
+                    # Check if username already exists
+                    if username_exists(mydb, username):
+                        st.error("This username is already taken. Please choose another one.")
+                    else:
+                        # Automatically set `is_admin` based on user type
+                        is_admin = user_type == "Admin"
+                        
+                        # Create the user with the selected user type
+                        if create_user(mydb, username, password, email, is_admin, user_type):
+                            # Set a flag for success
+                            st.session_state.signup_success = True
+                            st.rerun()  # Reload page to show the success message
+                        else:
+                            st.error("Error creating account. Username or email may already exist.")
+                    mydb.close()
         else:
             st.warning("Please fill all fields!")
 
