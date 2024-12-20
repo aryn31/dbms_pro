@@ -61,7 +61,7 @@ def authenticate_user(connection, username, password):
     hashed_password = hashlib.sha256(password.encode()).hexdigest()
 
     query = """
-    SELECT username, password, is_admin, user_type  -- Include user_type in query
+    SELECT id,username, password, is_admin, user_type  -- Include user_type in query
     FROM users
     WHERE username = %s
     """
@@ -449,6 +449,7 @@ def login_page():
                 if user["user_type"] == user_type:
                     st.session_state.logged_in = True
                     st.session_state.username = username
+                    st.session_state.user_id = user['id']
                     st.session_state.is_admin = user["is_admin"]  # Save admin status
                     st.session_state.user_type = user["user_type"]  # Save user type
                     st.success("Logged in successfully!")
@@ -811,10 +812,296 @@ def manufacturer_dashboard():
     else:
         st.error("Failed to connect to the database.")
 
-def main():
-    # st.sidebar.image("logo.png", use_container_width=True)  # Logo in the sidebar
-    # st.title("FlyingMotors Ltd.")
+def filter_flights_with_prices_and_duration(mydb, departure_airport=None, arrival_airport=None, departure_date=None, arrival_date=None):
+    """
+    Fetches flights from the Flights table along with their prices and durations.
+    Uses airport names and dates for filtering.
+    """
+    try:
+        cursor = mydb.cursor(dictionary=True)
 
+        query = """
+        SELECT 
+            f.FlightID,
+            f.FlightNumber,
+            f.DepartureAirport,
+            f.ArrivalAirport,
+            f.DepartureTime,
+            f.ArrivalTime,
+            TIMEDIFF(f.ArrivalTime, f.DepartureTime) AS Duration,
+            fp.SeatClass,
+            fp.Price
+        FROM 
+            Flights f
+        LEFT JOIN 
+            FlightPrices fp ON f.FlightID = fp.FlightID
+        JOIN 
+            Airports a1 ON f.DepartureAirport = a1.IATACode
+        JOIN 
+            Airports a2 ON f.ArrivalAirport = a2.IATACode
+        WHERE 1 = 1
+        """
+        
+        # List to hold parameters for SQL query
+        params = []
+
+        # Add filters based on user input
+        if departure_airport:
+            query += " AND a1.AirportName = %s"
+            params.append(departure_airport)
+
+        if arrival_airport:
+            query += " AND a2.AirportName = %s"
+            params.append(arrival_airport)
+
+        if departure_date:
+            query += " AND DATE(f.DepartureTime) = %s"
+            params.append(departure_date)
+
+        if arrival_date:
+            query += " AND DATE(f.ArrivalTime) = %s"
+            params.append(arrival_date)
+
+        # Execute the query
+        cursor.execute(query, params)
+        flights = cursor.fetchall()
+        cursor.close()
+
+        # Convert the result to a DataFrame
+        import pandas as pd
+        return pd.DataFrame(flights)
+    
+    except Exception as e:
+        st.error(f"Error filtering flights: {e}")
+        return None
+
+def flight_booking_view():
+    # Connect to the database
+    mydb = connect_to_database()
+
+    if mydb:
+        st.title("Flight Booking")
+
+        # Check for user ID and username in session state
+        if 'user_id' not in st.session_state or 'username' not in st.session_state:
+            st.error("User details are not set in session state.")
+            return
+
+        # Display user information for debugging
+        st.write(f"User ID: {st.session_state.user_id}")
+        st.write(f"User Name: {st.session_state.username}")
+
+        # Fetch unique airport names
+        if 'airports' not in st.session_state:
+            st.session_state.airports = get_airport_names(mydb)
+
+        airports = st.session_state.airports
+
+        if airports:
+            # Input fields for filtering
+            departure_airport = st.selectbox("Select Departure Airport (optional)", [""] + airports)
+            arrival_airport = st.selectbox("Select Arrival Airport (optional)", [""] + airports)
+        else:
+            st.warning("No airports found in the database.")
+            departure_airport, arrival_airport = None, None
+
+        departure_date = st.date_input("Departure Date (optional)")
+        arrival_date = st.date_input("Arrival Date (optional)")
+
+        # Convert dates to strings
+        departure_date = str(departure_date) if departure_date else None
+        arrival_date = str(arrival_date) if arrival_date else None
+
+        # Search flights
+        if st.button("Search Flights for Booking"):
+            with st.spinner("Fetching flight data..."):
+                df = filter_flights_with_prices_and_duration(
+                    mydb,
+                    departure_airport=departure_airport if departure_airport else None,
+                    arrival_airport=arrival_airport if arrival_airport else None,
+                    departure_date=departure_date,
+                    arrival_date=arrival_date
+                )
+                st.session_state.search_results = df  # Save results to session state
+
+        # Fetch results from session state
+        if 'search_results' in st.session_state:
+            df = st.session_state.search_results
+
+            if df is not None and not df.empty:
+                st.success("Flights fetched successfully!")
+
+                # Show flight results
+                for index, row in df.iterrows():
+                    st.write(f"### Flight: {row['FlightNumber']}")
+                    st.write(f"Departure: {row['DepartureAirport']} at {row['DepartureTime']}")
+                    st.write(f"Arrival: {row['ArrivalAirport']} at {row['ArrivalTime']}")
+                    st.write(f"Duration: {row['Duration']}")
+                    st.write(f"Class: {row['SeatClass']}")
+                    st.write(f"Price: ₹{row['Price']}")
+
+                    # Book button
+                    if st.button(f"Book Flight {row['FlightNumber']} ({row['SeatClass']})", key=f"book_{index}"):
+                        with st.spinner("Booking flight..."):
+                            success = book_flight(
+                                mydb,
+                                user_id=st.session_state.user_id,
+                                user_name=st.session_state.username,
+                                flight_id=row['FlightID'],
+                                seat_class=row['SeatClass']
+                            )
+                        if success:
+                            st.success("Flight booked successfully!")
+                        else:
+                            st.error("Booking failed. Please try again.")
+
+                # Download button for filtered data
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label="Download results as CSV",
+                    data=csv,
+                    file_name="available_flights.csv",
+                    mime="text/csv"
+                )
+            else:
+                st.warning("No flights match the given criteria.")
+        else:
+            st.info("Search for flights to view available options.")
+
+        mydb.close()
+
+def book_flight(mydb, user_id, user_name, flight_id, seat_class):
+    cursor = mydb.cursor(dictionary=True)
+    st.write(f"chacha function me ghus gaya")
+    # Fetch the price for the given flight_id and seat_class
+    cursor.execute("""
+        SELECT Price 
+        FROM FlightPrices 
+        WHERE FlightID = %s AND SeatClass = %s
+    """, (flight_id, seat_class))
+    flight_price = cursor.fetchone()
+
+    if not flight_price:
+        st.error("Flight not available for the selected seat class.")
+        return False
+
+    price = flight_price['Price']
+    st.write(f"Booking Flight: FlightID = {flight_id}, SeatClass = {seat_class}, Price = ₹{price}")  # Debug line
+
+    # Insert a new booking into the Bookings table
+    try:
+        cursor.execute("""
+            INSERT INTO Bookings (UserID, FlightID, SeatClass, Price, Status, UserName)
+            VALUES (%s, %s, %s, %s, 'Confirmed', %s)
+        """, (user_id, flight_id, seat_class, price, user_name))
+        mydb.commit()  # Commit the transaction
+
+        # Debug line to confirm SQL execution
+        st.write("Booking SQL executed successfully.")
+
+        st.success("Booking confirmed!")
+        return True
+    except mysql.connector.Error as e:
+        st.error(f"Error booking flight: {e}")
+        mydb.rollback()  # Rollback in case of error
+        return False
+    finally:
+        cursor.close()
+
+def view_booking_history(mydb, user_id):
+    """
+    Fetches and displays the booking history for the given user with an option to cancel active bookings.
+    """
+    try:
+        cursor = mydb.cursor(dictionary=True)
+        
+        query = """
+        SELECT 
+            b.BookingID,
+            b.UserName,
+            f.FlightNumber,
+            b.SeatClass,
+            b.Price,
+            b.BookingDate,
+            b.Status,
+            f.DepartureAirport,
+            f.ArrivalAirport,
+            f.DepartureTime,
+            f.ArrivalTime
+        FROM Bookings b
+        JOIN Flights f ON b.FlightID = f.FlightID
+        WHERE b.UserID = %s
+        ORDER BY b.BookingDate DESC
+        """
+        cursor.execute(query, (user_id,))
+        results = cursor.fetchall()
+        cursor.close()
+
+        if results:
+            st.title("Your Booking History")
+
+            # Display bookings
+            for booking in results:
+                st.write(f"### Booking ID: {booking['BookingID']}")
+                st.write(f"Flight Number: {booking['FlightNumber']}")
+                st.write(f"Seat Class: {booking['SeatClass']}")
+                st.write(f"Price: ₹{booking['Price']}")
+                st.write(f"Booking Date: {booking['BookingDate']}")
+                st.write(f"Departure: {booking['DepartureAirport']} at {booking['DepartureTime']}")
+                st.write(f"Arrival: {booking['ArrivalAirport']} at {booking['ArrivalTime']}")
+                st.write(f"Status: {booking['Status']}")
+
+                if booking['Status'] == 'Confirmed':  # Assuming 'Confirmed' means active
+                    # Cancel button
+                    if st.button(f"Cancel Booking {booking['BookingID']}", key=f"cancel_{booking['BookingID']}"):
+                        with st.spinner("Canceling booking..."):
+                            success = cancel_booking(mydb, booking['BookingID'])
+                        if success:
+                            st.success(f"Booking ID {booking['BookingID']} canceled successfully!")
+                        else:
+                            st.error(f"Failed to cancel Booking ID {booking['BookingID']}. Please try again.")
+        else:
+            st.info("No bookings found.")
+    except Exception as e:
+        st.error(f"Error fetching booking history: {e}")
+
+def booking_history_view():
+    """
+    Displays the user's booking history and allows cancellation of active bookings.
+    """
+    mydb = connect_to_database()
+
+    if mydb:
+        st.title("Booking History")
+
+        if "user_id" in st.session_state:
+            user_id = st.session_state.user_id
+            view_booking_history(mydb, user_id)
+        else:
+            st.warning("Please log in to view your booking history.")
+        
+        mydb.close()
+
+def cancel_booking(mydb, booking_id):
+    """
+    Cancels a booking by updating its status to 'Canceled'.
+    """
+    try:
+        cursor = mydb.cursor()
+        query = "UPDATE Bookings SET Status = 'Canceled' WHERE BookingID = %s AND Status = 'Confirmed'"
+        cursor.execute(query, (booking_id,))
+        mydb.commit()
+        cursor.close()
+
+        if cursor.rowcount > 0:
+            return True  # Cancellation successful
+        else:
+            return False  # Booking not found or already canceled
+    except Exception as e:
+        st.error(f"Error canceling booking: {e}")
+        return False
+
+def main():
     # Display logo and company name side by side
     col1, col2 = st.columns([1, 6])  # Adjust column widths as needed
     with col1:
@@ -830,6 +1117,7 @@ def main():
     if 'user_type' not in st.session_state:
         st.session_state.user_type = None
 
+    # User is not logged in
     if not st.session_state.logged_in:
         menu = ["Login", "Sign Up"]
         choice = st.sidebar.selectbox("Menu", menu)
@@ -839,6 +1127,7 @@ def main():
         else:
             signup_page()
     else:
+        # Show welcome message in the sidebar
         st.sidebar.success(f"Welcome {st.session_state.username}")
 
         # Debugging: Show role
@@ -850,7 +1139,8 @@ def main():
         elif st.session_state.user_type == "Manufacturer":
             menu = ["Manufacturer Dashboard"]
         else:
-            menu = ["Flight Search"]
+            # Regular user menu
+            menu = ["Flight Search", "Flight Booking", "Booking History"]
 
         choice = st.sidebar.selectbox("Menu", menu)
 
@@ -860,20 +1150,33 @@ def main():
             if mydb:
                 admin_panel(mydb)
                 mydb.close()
+
         # Manufacturer view
         elif choice == "Manufacturer Dashboard" and st.session_state.user_type == "Manufacturer":
             manufacturer_dashboard()
-        # Regular user view
+
+        # Regular user views
         elif choice == "Flight Search" and st.session_state.user_type == "Regular":
             flight_search_view()
+        elif choice == "Flight Booking" and st.session_state.user_type == "Regular":
+            flight_booking_view()
+        elif choice == "Booking History" and st.session_state.user_type == "Regular":
+            mydb = connect_to_database()
+            if mydb:
+                view_booking_history(mydb, st.session_state.user_id)  # Show booking history
+                mydb.close()
+
+        # Default user view
         else:
             user_view()
 
-        # Logout
+        # Logout option in the sidebar
         if st.sidebar.button("Logout"):
             st.session_state.logged_in = False
             st.session_state.is_admin = False
             st.session_state.user_type = None
+            st.session_state.username = None
+            st.session_state.user_id = None
             st.rerun()
 
 if __name__ == "__main__":
